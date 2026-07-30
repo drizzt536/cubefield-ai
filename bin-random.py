@@ -1,5 +1,4 @@
 from common import np, model_files, load_model
-import scipy.ndimage
 from sys import argv
 
 model_file = None
@@ -10,7 +9,7 @@ for arg in argv[1:]:
 			"usage: python bin-random.py [--help | FILE | --type=TYPE]"
 			"\n"
 			"\npass uniform random data into the model and count how often it returns each result."
-			"\nFILE is a path to a keras model file. the default is `./game_model.keras`."
+			f"\nFILE is a path to a keras model file. the default is `{model_files[0]}`."
 			"\nTYPE can be 'solid', 'static', or 'blobby'"
 			"\nrequires tensorflow and scipy"
 		)
@@ -26,6 +25,8 @@ for arg in argv[1:]:
 			raise ValueError("model file cannot be an empty string")
 
 		model_file = arg
+
+import scipy.ndimage
 
 model = load_model(model_file or model_files[0])
 
@@ -59,7 +60,8 @@ y = model.predict([imgs, t], batch_size=128)
 res = np.bincount(y.argmax(axis=1), minlength=3)
 res = res / res.sum() # /= doesn't work.
 
-print(f"number of random inputs: {n}")
+print(f"input type: {IMG_TYPE}")
+print(f"number of random inputs: {n:,}")
 print(f"average pixel brightness: {imgs.mean()}")
 print(f"average time elapsed: {t.mean()}")
 print(f"probabilities: none={res[0]:.4f}, left={res[1]:.4f}, right={res[2]:.4f}")

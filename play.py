@@ -490,7 +490,7 @@ def main(res: int = 1) -> bool:
 					)
 				))
 
-				old_pb_paths = tuple(Path(model_folder).glob("pb-model-*.keras"))
+				old_pb_paths = tuple(Path(model_folder).glob("pb-model-*.keras.xz"))
 
 				if len(old_pb_paths) > 1:
 					# delete all the stale PB files if there are any
@@ -513,7 +513,7 @@ def main(res: int = 1) -> bool:
 					if old_pb_paths:
 						old_pb_paths[0].unlink()
 
-					file_copy(model_file, f"{model_folder}/pb-model-{new_score}.keras")
+					file_copy(model_file, f"{model_folder}/pb-model-{new_score}.keras.xz")
 
 				print(f"score{pb}: {new_score:,}", end="")
 
