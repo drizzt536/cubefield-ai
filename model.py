@@ -14,7 +14,7 @@ def warn(msg: str) -> None:
 	print(f"\x1b[38;2;180;100;0m{msg}\x1b[m")
 
 def find_best_pb() -> Path:
-	pb_paths = list(Path(model_folder).glob("pb-model-*.keras"))
+	pb_paths = list(Path(model_folder).glob("pb-model-*.keras.xz"))
 
 	if not pb_paths:
 		fatal("no PB model found")
@@ -28,7 +28,7 @@ def mark_path(name: str) -> Path:
 	if '/' in name or '\\' in name:
 		raise ValueError("path separators are not allowed in mark names")
 
-	return Path(model_folder) / f"model-mark-{name}.keras"
+	return Path(model_folder) / f"model-mark-{name}.keras.xz"
 
 def age_chain() -> None:
 	"shift every main-line backup back by one slot, freeing up slot 0."
@@ -120,15 +120,15 @@ def mark_remove(name: str) -> None:
 	path.unlink()
 	print(f"removed mark '{name}'")
 
-def list_models(glob: str = "*.keras") -> None:
+def list_models(glob: str = "*.keras.xz") -> None:
 	for path in Path(model_folder).glob(glob):
 		print(path)
 
-def clear_models(glob: str = "*.keras") -> None:
+def clear_models(glob: str = "*.keras.xz") -> None:
 	for path in Path(model_folder).glob(glob):
 		# never delete the current model
 
-		if path.name != "game_model.keras":
+		if path.name != "game_model.keras.xz":
 			path.unlink()
 
 def drop_models(n: int = 1) -> None:
@@ -224,15 +224,15 @@ if __name__ == "__main__":
 
 			drop_models(n)
 
-		case ["ls", "all"] | ["ls"] : list_models("*.keras")
-		case ["ls", "pb"]      : list_models("pb-model-*.keras")
-		case ["ls", "backups"] : list_models("game_model.old*.keras")
-		case ["ls", "marks"]   : list_models("model-mark-*.keras")
+		case ["ls", "all"] | ["ls"] : list_models("*.keras.xz")
+		case ["ls", "pb"]      : list_models("pb-model-*.keras.xz")
+		case ["ls", "backups"] : list_models("game_model.old*.keras.xz")
+		case ["ls", "marks"]   : list_models("model-mark-*.keras.xz")
 
-		case ["list", "all"]      : clear_models("*.keras")
-		case ["clear", "pb"]      : clear_models("pb-model-*.keras")
-		case ["clear", "marks"]   : clear_models("model-mark-*.keras")
-		case ["clear", "backups"] : clear_models("game_model.old*.keras")
+		case ["list", "all"]      : clear_models("*.keras.xz")
+		case ["clear", "pb"]      : clear_models("pb-model-*.keras.xz")
+		case ["clear", "marks"]   : clear_models("model-mark-*.keras.xz")
+		case ["clear", "backups"] : clear_models("game_model.old*.keras.xz")
 
 		case ["mark", "set", name]: mark_set(name)
 		case ["mark", "rm", name]: mark_remove(name)
