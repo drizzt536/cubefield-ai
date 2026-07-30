@@ -494,15 +494,15 @@ def main(res: int = 1) -> bool:
 
 				if len(old_pb_paths) > 1:
 					# delete all the stale PB files if there are any
-					best_path = max(old_pb_paths, key=lambda p: int(p.name[9:-6]))
+					best_path = max(old_pb_paths, key=lambda p: int(p.name[9:-9]))
 
 					for path in old_pb_paths:
 						if path != best_path:
 							path.unlink()
 
-					old_pb_score = int(best_path.name[9:-6])
+					old_pb_score = int(best_path.name[9:-9])
 				elif old_pb_paths:
-					old_pb_score = int(old_pb_paths[0].name[9:-6])
+					old_pb_score = int(old_pb_paths[0].name[9:-9])
 				else:
 					old_pb_score = 0
 
