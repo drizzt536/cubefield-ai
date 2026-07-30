@@ -1,0 +1,7 @@
+__pycache__
+/vids/
+/runs/
+/plots/
+
+/models/*
+!/models/game_model.keras.xz
