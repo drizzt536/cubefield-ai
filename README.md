@@ -3,7 +3,7 @@ The primary monitor should be 2560x1600 with the game on fullscreen or it probab
 
 prerequisite packages: tensorflow, numpy, opencv-python, dxcam, pytesseract, and pydirectinput.
 tensorflow doesn't work on Python 3.14 yet.
-Tesseract OC also needs to be installed.
+Tesseract OCR also needs to be installed.
 
 intructions to run player:
 1. open the game in fullscreen
@@ -12,3 +12,5 @@ intructions to run player:
 4. wait until the program is done warming up and press space
 
 press and hold escape whenever done.
+
+email me if you want the training data.

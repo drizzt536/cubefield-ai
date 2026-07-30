@@ -179,7 +179,9 @@ def load_runs(file="*.npz", runs_dir=runs_dir, raw: bool = False):
 def count_datapoints(file="*.npz", runs_dir=runs_dir):
 	return sum(len(np.load(path)["elapsed"]) for path in get_paths(runs_dir, file))
 
-def count_usages(file="*.npz", runs_dir=runs_dir, p_intrin=1):
+def count_usages(file="*.npz", runs_dir=runs_dir, turn_bias=0):
+	"negative turn_bias biases towards doing nothing and positive biases towards turning."
+
 	total = 0
 	none  = 0
 	left  = 0
@@ -194,8 +196,8 @@ def count_usages(file="*.npz", runs_dir=runs_dir, p_intrin=1):
 		right += r
 		none  += len(data["left"]) - l - r
 
-	drop_p = (1 - max(left, right) / none) * p_intrin
-	drop_p = min(max(0, drop_p), 1)
+	drop_p  = 1 - max(left, right) / none
+	drop_p += ((turn_bias > 0) - drop_p)*abs(turn_bias)
 
 	return {
 		"total": none + left + right,
@@ -205,9 +207,9 @@ def count_usages(file="*.npz", runs_dir=runs_dir, p_intrin=1):
 		"drop" : drop_p
 	}
 
-def count_usable_datapoints(file="*.npz", runs_dir=runs_dir, p_intrin=1) -> int:
+def count_usable_datapoints(file="*.npz", runs_dir=runs_dir, turn_bias=0) -> int:
 	"rough estimate. the actual value varies between training sessions"
-	usages = count_usages(file, runs_dir, p_intrin)
+	usages = count_usages(file, runs_dir, turn_bias)
 
 	return usages["left"] + usages["right"] + round(usages["none"]*(1 - usages["drop"]))
 

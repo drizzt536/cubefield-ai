@@ -6,7 +6,7 @@ import tensorflow as tf
 keras = tf.keras
 layers = keras.layers
 
-usages = count_usages(p_intrin=0.9)
+usages = count_usages(turn_bias=-0.1)
 paths  = list(get_paths())
 
 np.random.default_rng().shuffle(paths)
