@@ -37,24 +37,27 @@ logit_model = tf.keras.models.clone_model(model)
 logit_model.layers[-1].activation = tf.keras.activations.linear
 logit_model.set_weights(model.get_weights())
 
+current_file = None
 current_data = None
 current_index = 0
 
 def pick_random_frame():
-	global current_data, current_index
+	global current_file, current_data, current_index
 
-	file = np.random.choice(list(get_paths())).name
-	current_data = load_runs(file)
+	current_file = np.random.choice(list(get_paths())).name
+	current_data = load_runs(current_file)
 
 	current_index = np.random.randint(0, len(current_data))
 	return current_data[current_index]
 
 def compute_frame(frame_data):
-	global current_index
-	print(f"\n--- Analyzing Frame {current_index} ---")
+	global current_file, current_index
+	print(f"\n--- Analyzing {current_file} Frame {current_index} ---")
 
 	single_frame = frame_data[0][None, ..., None]
 	single_time  = (frame_data[3].astype(np.float32) / 300)[None, None]
+
+	action = frame_data[1] | frame_data[2] << 1
 
 	image_tensor = tf.convert_to_tensor(single_frame, dtype=tf.float32)
 	time_tensor  = tf.convert_to_tensor(single_time, dtype=tf.float32)
@@ -86,12 +89,17 @@ def compute_frame(frame_data):
 		d_time = time_gradients.numpy()[0, 0]
 		print(f"Action {action_index} ({action_labels[action_index]:<5}) -> dP/dt: {d_time:+.6f}, P={target_score:+9.3f}, p={p[action_index]:.6f}")
 
-	return single_frame.squeeze(), saliency_maps, p
+	return single_frame.squeeze(), saliency_maps, p, int(frame_data[3]), action
 
 print("NOTE: p is the probability, and P is the raw preference value")
 
-rbg_cmap = LinearSegmentedColormap.from_list("RedBlackGreen", ["red", "black", "lime"])
+signed_cmap = LinearSegmentedColormap.from_list("RedBlackGreen", [
+	(0.0, "#ff007f"),
+	(0.5, "#000000"),
+	(1.0, "#00ff7f"),
+])
 
+plt.rcParams["keymap.save"].remove('s')
 plt.style.use("dark_background")
 fig, axes = plt.subplots(2, 2, figsize=(12, 8))
 axes_flat = axes.flatten()
@@ -99,11 +107,11 @@ axes_flat = axes.flatten()
 initial_data = pick_random_frame()
 
 show_signed = True
-current_frame_img, current_maps, current_p = compute_frame(initial_data)
+current_frame_img, current_maps, current_p, current_elapsed, current_action = compute_frame(initial_data)
 
 im_objects = []
 
-axes_flat[0].set_title("Input Frame\n(Press ENTER for new frame)")
+axes_flat[0].set_title(f"Input Frame (action={current_action}, elapsed={current_elapsed})")
 im = axes_flat[0].imshow(current_frame_img, cmap="gray")
 axes_flat[0].axis("off")
 im_objects.append(im)
@@ -111,7 +119,7 @@ im_objects.append(im)
 for idx in range(3):
 	ax = axes_flat[idx + 1]
 	ax.set_title(f"Action {idx}: {action_labels[idx]}, p={current_p[idx]:.4f}")
-	im = ax.imshow(current_maps[idx], cmap=rbg_cmap, vmin=-1, vmax=1)
+	im = ax.imshow(current_maps[idx], cmap=signed_cmap, vmin=-1, vmax=1)
 	ax.axis("off")
 	im_objects.append(im)
 
@@ -119,8 +127,9 @@ cbar = fig.colorbar(im_objects[1], ax=axes, fraction=0.03, pad=0.04)
 
 def update_display():
 	im_objects[0].set_data(current_frame_img)
+	axes_flat[0].set_title(f"Input Frame (action={current_action}, elapsed={current_elapsed})")
 
-	cmap = rbg_cmap if show_signed else "hot"
+	cmap = signed_cmap if show_signed else "hot"
 	vmin, vmax = (-1, 1) if show_signed else (0, 1)
 
 	for idx in range(3):
@@ -137,7 +146,7 @@ def update_display():
 
 def on_key(event):
 	global current_data, current_index, show_signed
-	global current_frame_img, current_maps, current_p
+	global current_frame_img, current_maps, current_p, current_elapsed, current_action
 
 	needs_recompute = False
 
@@ -160,7 +169,7 @@ def on_key(event):
 	elif event.key == "end":
 		current_index = len(current_data) - 1
 		needs_recompute = True
-	elif event.key == "v":
+	elif event.key == "s":
 		show_signed = not show_signed
 		update_display()
 		return
@@ -170,7 +179,7 @@ def on_key(event):
 
 	if needs_recompute:
 		frame_data = current_data[current_index]
-		current_frame_img, current_maps, current_p = compute_frame(frame_data)
+		current_frame_img, current_maps, current_p, current_elapsed, current_action = compute_frame(frame_data)
 		update_display()
 
 fig.canvas.mpl_connect("key_press_event", on_key)

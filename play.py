@@ -251,9 +251,9 @@ def background_visualizer():
 		if vis_signed:
 			display /= np.abs(display).max() + 1e-8 # normalized saliency
 			display  = np.stack([
-				np.zeros_like(display, dtype=np.uint8), # B
-				np.uint8(  display .clip(0, 1) * 255),  # G
-				np.uint8((-display).clip(0, 1) * 255),  # R
+				np.uint8(np.abs(display).clip(0, 1) * 127), # B
+				np.uint8(       display .clip(0, 1) * 255), # G
+				np.uint8(     (-display).clip(0, 1) * 255), # R
 			], axis=-1)
 		else:
 			display  = np.abs(display)      # absolute saliency
@@ -375,7 +375,7 @@ def main(res: int = 1) -> bool:
 		frame_input = (frame_input.astype(np.float32) / 255)[None, ..., None]
 
 		elapsed_seconds = int(time.perf_counter() - game_start)
-		elapsed_input = np.float32([[elapsed_seconds / 300]])
+		elapsed_input   = np.float32([[elapsed_seconds / 300]])
 
 		logits = fast_predict(frame_input, elapsed_input)
 		action = int(np.argmax(logits))

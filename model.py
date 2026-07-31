@@ -1,7 +1,8 @@
-from common import Path as _Path, model_files, model_folder, backup_history
+from common import Path as _Path, model_files, model_folder
 from shutil import copy as file_copy
-from sys import argv
 import filecmp
+
+### helpers start
 
 class Path(type(_Path())):
 	def __str__(self):
@@ -39,7 +40,9 @@ def age_chain() -> None:
 		if src.exists():
 			src.replace(model_files[i])
 
-def rotate_models(n: int) -> None:
+### helpers end
+
+def restore(n: int) -> None:
 	"move model_files[n] to the front, shifting 0..n-1 back by one slot."
 
 	if n == 0:
@@ -66,7 +69,7 @@ def rotate_models(n: int) -> None:
 	tmp.replace(model_files[0])
 	print(f"restored model from backup {n}")
 
-def restore_model(path: Path, label: str) -> None:
+def _restore_named(path: Path, label: str) -> None:
 	"restore `path` as the current model, reusing an existing backup slot if it matches one."
 
 	for n, f in enumerate(model_files):
@@ -76,7 +79,7 @@ def restore_model(path: Path, label: str) -> None:
 			if n != 0:
 				print(f"{label} matches backup {n}")
 
-			rotate_models(n)
+			restore(n)
 			return
 
 	# model is not in the chain
@@ -86,7 +89,7 @@ def restore_model(path: Path, label: str) -> None:
 
 def restore_pb() -> None:
 	best = find_best_pb()
-	restore_model(best, f"PB model ({best.name})")
+	_restore_named(best, f"PB model ({best.name})")
 
 def restore_mark(name: str) -> None:
 	src = mark_path(name)
@@ -94,7 +97,35 @@ def restore_mark(name: str) -> None:
 	if not src.exists():
 		fatal(f"no mark named '{name}'")
 
-	restore_model(src, f"mark '{name}'")
+	_restore_named(src, f"mark '{name}'")
+
+def rm(n: int) -> None:
+	if n == 0:
+		drop_newest(1)
+		return
+
+	if n < 0 or n >= len(model_files):
+		fatal(f"backup {n} doesn't exist. valid range is [0, {len(model_files) - 1}]")
+
+	target = Path(model_files[n])
+
+	if not target.exists():
+		fatal(f"'{target}' doesn't exist. nothing to remove")
+
+	existing_count = sum(Path(f).exists() for f in model_files)
+
+	if existing_count <= 1:
+		fatal("can't remove the only model in the chain")
+
+	target.unlink()
+
+	for i in range(n, len(model_files) - 1):
+		src = Path(model_files[i + 1])
+
+		if src.exists():
+			src.replace(model_files[i])
+
+	print(f"removed backup {n}")
 
 def mark_set(name: str) -> None:
 	current = Path(model_files[0])
@@ -110,7 +141,7 @@ def mark_set(name: str) -> None:
 	file_copy(current, dst)
 	print(f"marked current model as '{name}'")
 
-def mark_remove(name: str) -> None:
+def rm_mark(name: str) -> None:
 	path = mark_path(name)
 
 	if not path.exists():
@@ -120,18 +151,53 @@ def mark_remove(name: str) -> None:
 	path.unlink()
 	print(f"removed mark '{name}'")
 
-def list_models(glob: str = "*.keras.xz") -> None:
-	for path in Path(model_folder).glob(glob):
-		print(path)
+def mark_mv(old: str, new: str) -> None:
+	old_path = mark_path(old)
+	new_path = mark_path(new)
 
-def clear_models(glob: str = "*.keras.xz") -> None:
+	if not old_path.exists():
+		fatal(f"no mark named '{old}'")
+
+	if new_path.exists():
+		warn(f"mark '{new}' already exists. overwriting")
+
+	old_path.replace(new_path)
+	print(f"renamed mark '{old}' to '{new}'")
+
+def mark_cp(old: str, new: str) -> None:
+	old_path = mark_path(old)
+	new_path = mark_path(new)
+
+	if not old_path.exists():
+		fatal(f"no mark named '{old}'")
+
+	if new_path.exists():
+		warn(f"mark '{new}' already exists. overwriting")
+
+	file_copy(old_path, new_path)
+	print(f"copied mark '{old}' to '{new}'")
+
+def ls(glob: str = "*.keras.xz") -> None:
+	from datetime import datetime
+	from hashlib import sha256
+
+	print(f"{"hash":8}  {"modify time":16}  {"file size":11}  file name\n" + "-"*66)
+	for path in sorted(Path(model_folder).glob(glob), key=lambda p: p.name):
+		stat   = path.stat()
+		size   = round(stat.st_size / 1024)
+		digest = sha256(path.read_bytes()).hexdigest()[:8]
+		mtime  = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+
+		print(f"{digest}  {mtime}  {f"{size:,} KiB":11}  {path.name}")
+
+def clear(glob: str = "*.keras.xz") -> None:
 	for path in Path(model_folder).glob(glob):
 		# never delete the current model
 
 		if path.name != "game_model.keras.xz":
 			path.unlink()
 
-def drop_models(n: int = 1) -> None:
+def drop_newest(n: int = 1) -> None:
 	if n < 0:
 		fatal("`n` must be non-negative")
 
@@ -140,18 +206,13 @@ def drop_models(n: int = 1) -> None:
 		return
 
 	existing_count = sum(Path(f).exists() for f in model_files)
-	max_droppable = existing_count - 1
 
-	if max_droppable <= 0:
-		fatal("can't drop the only model in the chain")
+	if n >= existing_count:
+		fatal(f"can't remove {n} models; only {existing_count} exist")
 
-	n = min(n, max_droppable)
-
-	# delete the file being dropped
+	# delete the files being dropped
 	for i in range(n):
-		current = Path(model_files[i])
-		if current.exists():
-			current.unlink()
+		Path(model_files[i]).unlink()
 
 	# transfer older slots upwards
 	for i in range(n, len(model_files)):
@@ -161,36 +222,73 @@ def drop_models(n: int = 1) -> None:
 		if src.exists():
 			src.replace(dst)
 
-	print(f"dropped {n} model{'' if n == 1 else 's'}")
+	print(f"dropped the {n} newest model{'' if n == 1 else 's'}")
+
+def drop_oldest(n: int) -> None:
+	existing = [Path(f) for f in model_files if Path(f).exists()]
+
+	if n < 0:
+		fatal("`n` must be non-negative")
+
+	if n == 0:
+		print(f"dropped 0 models")
+		return
+
+	if n >= len(existing):
+		fatal(f"can't remove {n} models; only {len(existing)} exist")
+
+	for i, path in existing[-n:]:
+		path.unlink()
+
+	print(f"dropped the {n} oldest model{'' if n == 1 else 's'}")
+
+def _str_to_int(n_str: str) -> int:
+	try:
+		n = int(n_str)
+
+		if n < 0:
+			raise ValueError
+	except ValueError:
+		fatal(f"invalid argument: '{n_str}'")
+
+	return n
 
 if __name__ == "__main__":
+	from sys import argv
+
 	usage = (
 		f"usage: python {Path(argv[0]).name} <command>"
 		"\n"
-		"\nmodel local version control program."
+		"\nKeras+xz model local version control program."
 		"\nuse to avoid involving git in frequently-changed binaries."
 		"\n"
 		"\ncommands:"
-		"\n    help | --help | -h   print this message and exit"
+		"\n    help, --help, -h     print this message and exit"
 		"\n"
-		"\n    restore backup <n>   restore the model from n backups ago (0 = current)"
+		# `model restore n` run n times is a noop.
+		"\n    restore <n>          restore the model from n backups ago (0 = current)"
 		"\n    restore pb           restore the PB model"
 		"\n    restore mark <name>  restore a previously marked model"
 		"\n"
-		"\n    drop [<n>]           drop the <n> most recent main-line models. default is 1"
+		"\n    drop [newest] [<n>]  delete the <n> most recent main-line models. default is 1"
+		"\n    drop oldest [<n>]    delete the <n> least recent main-line models. default is 1"
 		"\n"
-		"\n    ls [all]             list all models"
-		"\n    ls pb                list PB models"
+		"\n    ls [all]             list all models. hashes are the first 4 bytes from sha256"
+		"\n    ls pb                list PB model(s)"
 		"\n    ls backups           list main-line backup models"
 		"\n    ls marks             list marked models"
+		"\n"
+		"\n    rm <n>               remove backup <n> and shift up subsequent backups"
+		"\n    rm mark <name>       delete a marked model"
 		"\n"
 		"\n    clear all            delete all models except the current one"
 		"\n    clear pb             delete PB models"
 		"\n    clear backups        delete main-line backup models"
 		"\n    clear marks          delete marked models"
 		"\n"
-		"\n    mark set <name>      save the current model under a name for later restoring"
-		"\n    mark rm <name>       delete a marked model (does not affect the current model)"
+		"\n    mark set <name>      mark and save the current model"
+		"\n    mark mv <old> <new>  remark a model under a different name"
+		"\n    mark cp <old> <new>  copy a marked model to a different name"
 	)
 
 	match argv[1:]:
@@ -198,44 +296,31 @@ if __name__ == "__main__":
 			print(usage)
 			exit(0)
 
-		case ["restore", "pb"]: restore_pb()
-		case ["restore", "mark", name]: restore_mark(name)
-		case ["restore", n_str]:
-			try:
-				n = int(n_str)
+		case ["restore", "pb"]         : restore_pb()
+		case ["restore", "mark", name] : restore_mark(name)
+		case ["restore", n_str]        : restore(_str_to_int(n_str))
 
-				if n < 0:
-					raise ValueError
-			except ValueError:
-				fatal(f"invalid argument: '{n_str}'")
+		case ["drop", "newest"]        | ["drop"]        : drop_newest(1)
+		case ["drop", "newest", n_str] | ["drop", n_str] : drop_newest(_str_to_int(n_str))
+		case ["drop", "oldest"]                          : drop_oldest(1)
+		case ["drop", "oldest", n_str]                   : drop_oldest(_str_to_int(n_str))
 
-			rotate_models(n)
+		case ["ls", "all"] | ["ls"] : ls("*.keras.xz")
+		case ["ls", "pb"]           : ls("pb-model-*.keras.xz")
+		case ["ls", "backups"]      : ls("game_model.old*.keras.xz")
+		case ["ls", "marks"]        : ls("model-mark-*.keras.xz")
 
-		case ["drop"]:
-			drop_models(1)
-		case ["drop", n_str]:
-			try:
-				n = int(n_str)
+		case ["rm", n_str]        : rm(_str_to_int(n_str))
+		case ["rm", "mark", name] : rm_mark(name)
 
-				if n < 0:
-					raise ValueError
-			except ValueError:
-				fatal(f"invalid argument: '{n_str}'")
+		case ["list", "all"]      : clear("*.keras.xz")
+		case ["clear", "pb"]      : clear("pb-model-*.keras.xz")
+		case ["clear", "marks"]   : clear("model-mark-*.keras.xz")
+		case ["clear", "backups"] : clear("game_model.old*.keras.xz")
 
-			drop_models(n)
-
-		case ["ls", "all"] | ["ls"] : list_models("*.keras.xz")
-		case ["ls", "pb"]      : list_models("pb-model-*.keras.xz")
-		case ["ls", "backups"] : list_models("game_model.old*.keras.xz")
-		case ["ls", "marks"]   : list_models("model-mark-*.keras.xz")
-
-		case ["list", "all"]      : clear_models("*.keras.xz")
-		case ["clear", "pb"]      : clear_models("pb-model-*.keras.xz")
-		case ["clear", "marks"]   : clear_models("model-mark-*.keras.xz")
-		case ["clear", "backups"] : clear_models("game_model.old*.keras.xz")
-
-		case ["mark", "set", name]: mark_set(name)
-		case ["mark", "rm", name]: mark_remove(name)
+		case ["mark", "set", name]    : mark_set(name)
+		case ["mark", "mv", old, new] : mark_mv(old, new)
+		case ["mark", "cp", old, new] : mark_cp(old, new)
 
 		case _:
 			print(usage)
