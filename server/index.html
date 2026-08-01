@@ -23,7 +23,10 @@
 
 		document.body.appendChild(player);
 
-		await player.load("./cubefield.swf");
+		await player.load({
+			url: "./cubefield.swf",
+			contextMenu: false,
+		});
 
 		await fetch("./kys", { cache: "no-store" });
 		console.log("Cubefield loaded");
