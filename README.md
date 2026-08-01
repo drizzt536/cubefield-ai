@@ -1,9 +1,9 @@
-The AI is meant to be played [here](https://cubefield.game-files.crazygames.com/ruffle/cubefield/1/cubefield.html?v=2.6) / [here](https://www.crazygames.com/game/cubefield). Only works on Windows.
+Only works on Windows.
 The primary monitor should be 2560x1600 with the game on fullscreen or it probably won't work.
 
 prerequisite packages: tensorflow, numpy, opencv-python, dxcam, pytesseract, and pydirectinput.
 tensorflow doesn't work on Python 3.14 yet.
-Tesseract OCR also needs to be installed.
+Tesseract OCR, Python, and Go also need to be installed.
 
 intructions to run player:
 1. open the game in fullscreen

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="./favicon.ico" type="image/x-icon">
+	<title>Cubefield</title>
+	<script type="text/javascript" src="./ruffle/ruffle.js"></script>
+</head>
+<body dir="ltr" style="background-color: black; margin: 0;">
+	<noscript>JavaScript must be enabled to play</noscript>
+	<script type="module" defer>
+		const player = RufflePlayer.newest().createPlayer();
+
+		player.style.cssText = `
+			height: 100vh;
+			width: 100vw;
+			border: 0;
+			top: 0;
+			left: 0;
+			position: absolute;
+		`;
+
+		document.body.appendChild(player);
+
+		await player.load("./cubefield.swf");
+
+		await fetch("./kys", { cache: "no-store" });
+		console.log("Cubefield loaded");
+	</script>
+</body>
+</html>
