@@ -515,6 +515,7 @@ def main(res: int = 1) -> bool:
 
 					file_copy(model_file, f"{model_folder}/pb-model-{new_score}.keras.xz")
 
+				all_scores.append(new_score)
 				print(f"score{pb}: {new_score:,}", end="")
 
 				res = 2
@@ -573,6 +574,7 @@ if collect:
 		print("waiting 1s")
 		time.sleep(1)
 
+all_scores = deque()
 prgm_start = time.perf_counter_ns()
 
 print(f"startup time: {(prgm_start - startup_start) / 1e9:.2f}s")
@@ -585,9 +587,27 @@ while res != 0:
 
 prgm_end = time.perf_counter_ns()
 
+print()
+
+if all_scores:
+	all_scores = np.uint32(all_scores)
+	all_scores.sort()
+
+	print(
+		f"score data:"
+		f"\n - n      : {len(all_scores)}"
+		f"\n - min    : {all_scores[0]}"
+		f"\n - max    : {all_scores[-1]}"
+		f"\n - mean   : {x.mean()}"
+		f"\n - median : {np.median(x):.2f}"
+		f"\n - stddev : {np.std(x):.2f}"
+	)
+else:
+	# last run exits early but still increments the counter
+	print(f"total runs: {runs - 1}")
+
 print(
-	f"\ntotal runs: {runs - 1}" # last run exits early but still increments the counter
-	f"\ntotal elapsed time: {(prgm_end - prgm_start) / 1e9:.2f}s"
+	f"total elapsed time: {(prgm_end - startup_start) / 1e9:.2f}s"
 	f"\nexiting"
 )
 
