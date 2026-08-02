@@ -11,8 +11,6 @@ import (
 	"os"
 )
 
-var done = make(chan bool)
-
 func main() {
 	var (
 		ip      string
@@ -48,8 +46,9 @@ func main() {
 		} else if file == "kys" && !persist {
 			println("exiting in 1s")
 			time.Sleep(1 * time.Second)
-			close(done)
-			return
+			// there shouldn't be any stuff left partially in flight.
+			// also, I don't care even if there is.
+			os.Exit(0)
 		}
 
 		println("serving file '" + file + "'")
@@ -57,11 +56,6 @@ func main() {
 
 		http.ServeFile(w, r, file)
 	})
-
-	go func () {
-		<- done
-		os.Exit(0)
-	}()
 
 	var address string = ip + ":" + port
 
