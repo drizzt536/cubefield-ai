@@ -72,7 +72,7 @@ if (-not (test-path -type leaf $outfile)) {
 		# I tested a bunch of codecs and presets, and these ones were basically the best
 		"size"     {"-c:v", "libx265", "-preset", "ultrafast"}
 		"speed"    {"-c:v", "libx264", "-preset", "ultrafast"}
-		"balanced" {"-c:v", "libx264", "-preset", "ultrafast"}
+		"balanced" {"-c:v", "libx264", "-preset", "superfast"}
 
 		"aom-av1"  {"-c:v", "libaom-av1"}
 		"x264"     {"-c:v", "libx264"}
